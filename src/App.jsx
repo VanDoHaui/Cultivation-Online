@@ -9,7 +9,6 @@ import React, {
 /** =========================
  *  CONSTANTS & HELPERS
  *  ========================= */
-const STORAGE_KEY = "webtruyen_state_latest_v2";
 const PAGE_CHAR_LEN = 1500;
 const COVER_URL = "/cultivation-online-cover.jpg";
 
@@ -193,54 +192,6 @@ function useReaderState() {
   const [readMode, setReadMode] = useState("scroll");
   const [readingPositions, setReadingPositions] = useState({});
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw);
-
-      const loadedChaps = (saved.chapters ?? []).map(normalizeChapter);
-      setChapters(loadedChaps);
-      setSelectedChapterId(saved.selectedChapterId ?? null);
-      setFontSize(saved.fontSize ?? 19);
-      setFontFamily(saved.fontFamily ?? "serif");
-      setLineHeight(saved.lineHeight ?? 1.9);
-      setLetterSpacing(saved.letterSpacing ?? 0.3);
-      setDarkMode(saved.darkMode ?? false);
-      setReadMode(saved.readMode ?? "scroll");
-      setReadingPositions(saved.readingPositions ?? {});
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        chapters,
-        selectedChapterId,
-        fontSize,
-        fontFamily,
-        lineHeight,
-        letterSpacing,
-        darkMode,
-        readMode,
-        readingPositions,
-      })
-    );
-  }, [
-    chapters,
-    selectedChapterId,
-    fontSize,
-    fontFamily,
-    lineHeight,
-    letterSpacing,
-    darkMode,
-    readMode,
-    readingPositions,
-  ]);
-
   return {
     chapters,
     setChapters,
@@ -353,7 +304,9 @@ function SettingsMenu({
             onChange={(e) => setLineHeight(parseFloat(e.target.value))}
             className="w-full"
           />
-          <div className="text-xs opacity-70 mt-1">{lineHeight.toFixed(1)}</div>
+          <div className="text-xs opacity-70 mt-1">
+            {lineHeight.toFixed(1)}
+          </div>
         </div>
 
         {/* Dãn chữ */}
@@ -474,7 +427,6 @@ function Header({
 
         {/* RIGHT – ACTION BUTTONS */}
         <div className="flex items-center gap-3">
-          {/* Mục lục */}
           <button
             onClick={onTocClick}
             className="w-9 h-9 rounded-full border bg-white text-slate-700 flex items-center justify-center shadow-sm text-lg"
@@ -483,7 +435,6 @@ function Header({
             📑
           </button>
 
-          {/* Upload chương */}
           <button
             onClick={onUploadClick}
             className="w-9 h-9 rounded-full border bg-white text-slate-700 flex items-center justify-center shadow-sm text-lg"
@@ -492,25 +443,22 @@ function Header({
             📤
           </button>
 
-          {/* Lưu Cloud */}
           <button
             onClick={onSaveCloud}
-            className="w-9 h-9 rounded-full border bg-white text-slate-700 flex items-center justify-center shadow-sm text-lg"
-            title="Lưu chương lên Cloud"
+            className="px-3 py-1.5 text-xs md:text-sm rounded-full border shadow-sm bg-white text-slate-800"
+            title="Lưu dữ liệu lên cloud"
           >
-            ☁
+            ☁ Lưu
           </button>
 
-          {/* Tải Cloud */}
           <button
             onClick={onLoadCloud}
-            className="w-9 h-9 rounded-full border bg-white text-slate-700 flex items-center justify-center shadow-sm text-lg"
-            title="Tải chương từ Cloud"
+            className="px-3 py-1.5 text-xs md:text-sm rounded-full border shadow-sm bg-white text-slate-800"
+            title="Tải dữ liệu từ cloud"
           >
-            ☁⬇
+            ☁ Tải
           </button>
 
-          {/* Cài đặt */}
           <div className="relative" ref={popupRef}>
             <button
               id={btnSettingId}
@@ -735,9 +683,10 @@ function Reader({
   useEffect(() => {
     if (!selectedChapterId || readMode !== "scroll") return;
     const pos = readingPositions[selectedChapterId];
-    window.scrollTo(0, pos?.scrollTop ?? 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedChapterId, readMode]);
+    if (typeof window !== "undefined") {
+      window.scrollTo(0, pos?.scrollTop ?? 0);
+    }
+  }, [selectedChapterId, readMode]); // cố ý không thêm readingPositions để tránh giật
 
   // Lưu vị trí cuộn trong chế độ cuộn
   useEffect(() => {
@@ -761,7 +710,9 @@ function Reader({
     const pos = readingPositions[selectedChapterId];
     if (readMode === "page") {
       setCurrentPageIndex(pos?.pageIndex ?? 0);
-      window.scrollTo(0, 0);
+      if (typeof window !== "undefined") {
+        window.scrollTo(0, 0);
+      }
     } else {
       setCurrentPageIndex(0);
     }
@@ -782,13 +733,17 @@ function Reader({
   const goPrevChapter = useCallback(() => {
     if (!hasPrevChapter) return;
     setSelectedChapterId(sortedChapters[currentIndex - 1].id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }, [hasPrevChapter, sortedChapters, currentIndex, setSelectedChapterId]);
 
   const goNextChapter = useCallback(() => {
     if (!hasNextChapter) return;
     setSelectedChapterId(sortedChapters[currentIndex + 1].id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }, [hasNextChapter, sortedChapters, currentIndex, setSelectedChapterId]);
 
   // Phím tắt chuyển chương
@@ -909,7 +864,7 @@ function Reader({
 }
 
 /** =========================
- *  MAIN APP (BẢN 2: có xoá chương + CLOUD)
+ *  MAIN APP (BẢN 2: có xoá chương + CLOUD SYNC)
  *  ========================= */
 export default function App() {
   const {
@@ -933,28 +888,113 @@ export default function App() {
     setReadingPositions,
   } = useReaderState();
 
-  // CLOUD SYNC
-  async function saveToCloud() {
-    await fetch("/api/save", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: "user-demo",
-        chapters,
-      }),
-    });
-    alert("Đã lưu lên cloud!");
-  }
-
-  async function loadFromCloud() {
-    const res = await fetch("/api/load?userId=user-demo");
-    const data = await res.json();
-    setChapters(data.chapters || []);
-    alert("Đã tải từ cloud!");
-  }
-
+  // PHẢI KHAI BÁO TRƯỚC KHI DÙNG TRONG loadFromCloud()
   const [showHome, setShowHome] = useState(true);
   const [showToc, setShowToc] = useState(false);
+
+  // Cloud sync helpers
+  const userId = "user-demo";
+
+  const saveToCloud = useCallback(async () => {
+    try {
+      const settings = {
+        fontSize,
+        fontFamily,
+        lineHeight,
+        letterSpacing,
+        darkMode,
+        readMode,
+      };
+
+      const payload = {
+        userId,
+        chapters,
+        settings,
+        readingPositions,
+        selectedChapterId,
+      };
+
+      await fetch("/api/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      console.log("Saved to cloud");
+    } catch (err) {
+      console.error("Failed to save to cloud", err);
+      alert("Lưu cloud thất bại, thử lại sau.");
+    }
+  }, [
+    userId,
+    chapters,
+    fontSize,
+    fontFamily,
+    lineHeight,
+    letterSpacing,
+    darkMode,
+    readMode,
+    readingPositions,
+    selectedChapterId,
+  ]);
+
+  const loadFromCloud = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/load?userId=${userId}`);
+      if (!res.ok) {
+        console.error("Load cloud error status", res.status);
+        return;
+      }
+      const data = await res.json();
+
+      if (Array.isArray(data.chapters)) {
+        setChapters(data.chapters);
+      }
+      if (data.settings) {
+        setFontSize(data.settings.fontSize ?? 19);
+        setFontFamily(data.settings.fontFamily ?? "serif");
+        setLineHeight(data.settings.lineHeight ?? 1.9);
+        setLetterSpacing(data.settings.letterSpacing ?? 0.3);
+        setDarkMode(data.settings.darkMode ?? false);
+        setReadMode(data.settings.readMode ?? "scroll");
+      }
+      if (data.readingPositions) {
+        setReadingPositions(data.readingPositions);
+      }
+
+      if (Array.isArray(data.chapters) && data.chapters.length > 0) {
+        // Nếu có selectedChapterId lưu trong cloud thì dùng, không thì lấy chương đầu
+        const cloudSelectedId = data.selectedChapterId;
+        const fallbackId = data.chapters[0].id;
+        setSelectedChapterId(cloudSelectedId ?? fallbackId);
+      }
+
+      // Nếu có dữ liệu cloud thì bỏ màn hình Home
+      if (Array.isArray(data.chapters) && data.chapters.length > 0) {
+        setShowHome(false);
+      }
+
+      console.log("Loaded from cloud");
+    } catch (err) {
+      console.error("Failed to load from cloud", err);
+    }
+  }, [
+    userId,
+    setChapters,
+    setFontSize,
+    setFontFamily,
+    setLineHeight,
+    setLetterSpacing,
+    setDarkMode,
+    setReadMode,
+    setReadingPositions,
+    setSelectedChapterId,
+    setShowHome,
+  ]);
+
+  // Tự động load từ cloud khi mở web
+  useEffect(() => {
+    loadFromCloud();
+  }, [loadFromCloud]);
 
   const fileInputRef = useRef(null);
 
@@ -1003,7 +1043,7 @@ export default function App() {
         let content = lines.slice(contentStart).join("\n").trim();
 
         const newChap = normalizeChapter({
-          id: Date.now() + Math.random() + fileIndex / 1000,
+          id: Date.now() + Math.random() + fileIndex / 1000, // vẫn uniq, giữ tương thích
           novel,
           title,
           content,
@@ -1024,7 +1064,11 @@ export default function App() {
           });
 
           setShowHome(false);
-          window.scrollTo(0, 0);
+          if (typeof window !== "undefined") {
+            window.scrollTo(0, 0);
+          }
+          // Tự động lưu cloud sau khi upload xong tất cả file
+          saveToCloud();
           e.target.value = "";
         }
       };
@@ -1062,6 +1106,8 @@ export default function App() {
 
       return filtered;
     });
+    // Tự động lưu cloud sau khi xoá chương
+    saveToCloud();
   };
 
   const selectedChapter =
@@ -1090,7 +1136,9 @@ export default function App() {
             if (!selectedChapter && chapters.length > 0) {
               setSelectedChapterId(chapters[0].id);
             }
-            window.scrollTo(0, 0);
+            if (typeof window !== "undefined") {
+              window.scrollTo(0, 0);
+            }
           }}
         />
       ) : (
@@ -1114,7 +1162,9 @@ export default function App() {
             onTocClick={() => setShowToc(true)}
             onHomeClick={() => {
               setShowHome(true);
-              window.scrollTo(0, 0);
+              if (typeof window !== "undefined") {
+                window.scrollTo(0, 0);
+              }
             }}
             onSaveCloud={saveToCloud}
             onLoadCloud={loadFromCloud}
@@ -1151,7 +1201,9 @@ export default function App() {
               onSelect={(id) => {
                 setSelectedChapterId(id);
                 setShowToc(false);
-                window.scrollTo(0, 0);
+                if (typeof window !== "undefined") {
+                  window.scrollTo(0, 0);
+                }
               }}
               onDeleteChapter={handleDeleteChapter}
               onClose={() => setShowToc(false)}

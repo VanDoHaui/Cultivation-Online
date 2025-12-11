@@ -409,6 +409,8 @@ function Header({
   onUploadClick,
   onTocClick,
   onHomeClick,
+  onSaveCloud,
+  onLoadCloud,
   pageInfo,
 }) {
   const [showSettings, setShowSettings] = useState(false);
@@ -472,6 +474,7 @@ function Header({
 
         {/* RIGHT – ACTION BUTTONS */}
         <div className="flex items-center gap-3">
+          {/* Mục lục */}
           <button
             onClick={onTocClick}
             className="w-9 h-9 rounded-full border bg-white text-slate-700 flex items-center justify-center shadow-sm text-lg"
@@ -480,6 +483,7 @@ function Header({
             📑
           </button>
 
+          {/* Upload chương */}
           <button
             onClick={onUploadClick}
             className="w-9 h-9 rounded-full border bg-white text-slate-700 flex items-center justify-center shadow-sm text-lg"
@@ -488,6 +492,25 @@ function Header({
             📤
           </button>
 
+          {/* Lưu Cloud */}
+          <button
+            onClick={onSaveCloud}
+            className="w-9 h-9 rounded-full border bg-white text-slate-700 flex items-center justify-center shadow-sm text-lg"
+            title="Lưu chương lên Cloud"
+          >
+            ☁
+          </button>
+
+          {/* Tải Cloud */}
+          <button
+            onClick={onLoadCloud}
+            className="w-9 h-9 rounded-full border bg-white text-slate-700 flex items-center justify-center shadow-sm text-lg"
+            title="Tải chương từ Cloud"
+          >
+            ☁⬇
+          </button>
+
+          {/* Cài đặt */}
           <div className="relative" ref={popupRef}>
             <button
               id={btnSettingId}
@@ -712,10 +735,9 @@ function Reader({
   useEffect(() => {
     if (!selectedChapterId || readMode !== "scroll") return;
     const pos = readingPositions[selectedChapterId];
-    if (typeof window !== "undefined") {
-      window.scrollTo(0, pos?.scrollTop ?? 0);
-    }
-  }, [selectedChapterId, readMode]); // cố ý không thêm readingPositions để tránh giật
+    window.scrollTo(0, pos?.scrollTop ?? 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChapterId, readMode]);
 
   // Lưu vị trí cuộn trong chế độ cuộn
   useEffect(() => {
@@ -739,9 +761,7 @@ function Reader({
     const pos = readingPositions[selectedChapterId];
     if (readMode === "page") {
       setCurrentPageIndex(pos?.pageIndex ?? 0);
-      if (typeof window !== "undefined") {
-        window.scrollTo(0, 0);
-      }
+      window.scrollTo(0, 0);
     } else {
       setCurrentPageIndex(0);
     }
@@ -762,17 +782,13 @@ function Reader({
   const goPrevChapter = useCallback(() => {
     if (!hasPrevChapter) return;
     setSelectedChapterId(sortedChapters[currentIndex - 1].id);
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [hasPrevChapter, sortedChapters, currentIndex, setSelectedChapterId]);
 
   const goNextChapter = useCallback(() => {
     if (!hasNextChapter) return;
     setSelectedChapterId(sortedChapters[currentIndex + 1].id);
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [hasNextChapter, sortedChapters, currentIndex, setSelectedChapterId]);
 
   // Phím tắt chuyển chương
@@ -893,7 +909,7 @@ function Reader({
 }
 
 /** =========================
- *  MAIN APP (BẢN 2: có xoá chương)
+ *  MAIN APP (BẢN 2: có xoá chương + CLOUD)
  *  ========================= */
 export default function App() {
   const {
@@ -916,6 +932,26 @@ export default function App() {
     readingPositions,
     setReadingPositions,
   } = useReaderState();
+
+  // CLOUD SYNC
+  async function saveToCloud() {
+    await fetch("/api/save", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: "user-demo",
+        chapters,
+      }),
+    });
+    alert("Đã lưu lên cloud!");
+  }
+
+  async function loadFromCloud() {
+    const res = await fetch("/api/load?userId=user-demo");
+    const data = await res.json();
+    setChapters(data.chapters || []);
+    alert("Đã tải từ cloud!");
+  }
 
   const [showHome, setShowHome] = useState(true);
   const [showToc, setShowToc] = useState(false);
@@ -967,7 +1003,7 @@ export default function App() {
         let content = lines.slice(contentStart).join("\n").trim();
 
         const newChap = normalizeChapter({
-          id: Date.now() + Math.random() + fileIndex / 1000, // vẫn uniq, giữ tương thích
+          id: Date.now() + Math.random() + fileIndex / 1000,
           novel,
           title,
           content,
@@ -988,9 +1024,7 @@ export default function App() {
           });
 
           setShowHome(false);
-          if (typeof window !== "undefined") {
-            window.scrollTo(0, 0);
-          }
+          window.scrollTo(0, 0);
           e.target.value = "";
         }
       };
@@ -1056,9 +1090,7 @@ export default function App() {
             if (!selectedChapter && chapters.length > 0) {
               setSelectedChapterId(chapters[0].id);
             }
-            if (typeof window !== "undefined") {
-              window.scrollTo(0, 0);
-            }
+            window.scrollTo(0, 0);
           }}
         />
       ) : (
@@ -1082,10 +1114,10 @@ export default function App() {
             onTocClick={() => setShowToc(true)}
             onHomeClick={() => {
               setShowHome(true);
-              if (typeof window !== "undefined") {
-                window.scrollTo(0, 0);
-              }
+              window.scrollTo(0, 0);
             }}
+            onSaveCloud={saveToCloud}
+            onLoadCloud={loadFromCloud}
             pageInfo={
               readMode === "page" && selectedChapter
                 ? {
@@ -1119,9 +1151,7 @@ export default function App() {
               onSelect={(id) => {
                 setSelectedChapterId(id);
                 setShowToc(false);
-                if (typeof window !== "undefined") {
-                  window.scrollTo(0, 0);
-                }
+                window.scrollTo(0, 0);
               }}
               onDeleteChapter={handleDeleteChapter}
               onClose={() => setShowToc(false)}
